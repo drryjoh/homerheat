@@ -11,7 +11,7 @@ The folk claim is that humid air is "thinner," so the ball carries farther. That
 | Physics of humid air + simple trajectory model | Physics agent | ✅ done | `physics/`, `notes/physics.md` |
 | Baseball context, confounders, skeptic's checklist | Baseball agent | ✅ done | `notes/baseball.md` |
 | 3–5. Normalization + models (HR rate, distance vs humidity, rain) | Normalizing agent | ✅ done | `analysis/`, `notes/normalization.md` |
-| Final 4-page report + one script per figure | Report agent | ✅ done (report.md pending save) | `report/`, `figures/` |
+| Final report (5 pp) + one script per figure | Report agent | ✅ done | `report/report.pdf`, `figures/` |
 
 ## Questions being answered
 1. Pull every home run (and every batted ball, for rates) as far back as possible. Statcast distance starts in 2015.
