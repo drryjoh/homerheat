@@ -9,7 +9,7 @@ The folk claim is that humid air is "thinner," so the ball carries farther. That
 | 1. Pull Statcast batted balls 2015–2025 + park locations | Data agent | 🔄 running | `src/`, `data/` |
 | 2. Join first-pitch weather (RH, dew point, temp, pressure, rain) | Data agent | 🔄 running | `data/processed/` |
 | Physics of humid air + simple trajectory model | Physics agent | 🔄 running | `physics/`, `notes/physics.md` |
-| Baseball context, confounders, skeptic's checklist | Baseball agent | 🔄 running | `notes/baseball.md` |
+| Baseball context, confounders, skeptic's checklist | Baseball agent | ✅ done | `notes/baseball.md` |
 | 3–5. Normalization + models (HR rate, distance vs humidity, rain) | Normalizing agent | ⏳ waits on data | `analysis/`, `notes/normalization.md` |
 | Final 4-page report + one script per figure | Report agent | ⏳ last | `report/`, `figures/` |
 
