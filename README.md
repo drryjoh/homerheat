@@ -11,7 +11,7 @@ The folk claim is that humid air is "thinner," so the ball carries farther. That
 | Physics of humid air + simple trajectory model | Physics agent | ✅ done | `physics/`, `notes/physics.md` |
 | Baseball context, confounders, skeptic's checklist | Baseball agent | ✅ done | `notes/baseball.md` |
 | 3–5. Normalization + models (HR rate, distance vs humidity, rain) | Normalizing agent | ✅ done | `analysis/`, `notes/normalization.md` |
-| Final 4-page report + one script per figure | Report agent | 🔄 running | `report/`, `figures/` |
+| Final 4-page report + one script per figure | Report agent | ✅ done (report.md pending save) | `report/`, `figures/` |
 
 ## Questions being answered
 1. Pull every home run (and every batted ball, for rates) as far back as possible. Statcast distance starts in 2015.
@@ -46,6 +46,7 @@ Rebuild commands (more are added as each stage lands):
 .venv/bin/python src/build_dataset.py
 
 .venv/bin/python -m analysis.run_all     # models + map tables -> analysis/results/ (~5 min)
+.venv/bin/python figures/make_all.py     # all report figures -> figures/out/*.png (~5 s; or run any figures/figNN_*.py alone)
 .venv/bin/python physics/trajectory.py   # distance vs RH table -> physics/out/distance_vs_rh.png
 ```
 
