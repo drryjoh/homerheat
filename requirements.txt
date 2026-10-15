@@ -1,0 +1,9 @@
+pybaseball
+pandas
+pyarrow
+numpy
+scipy
+statsmodels
+matplotlib
+cartopy
+requests
