@@ -1,0 +1,92 @@
+[1/5] primary distance-residual model
+  stage 1 hawkeye: n=86,556  R2=0.825  resid SD=14.9 ft
+  stage 1 trackman: n=73,169  R2=0.809  resid SD=15.2 ft
+                               model  estimate  ...       n  n_games
+0            dew point, ft per +10 C     0.893  ...  159725    20744
+1     vapor pressure, ft per +10 hPa     0.844  ...  159725    20744
+2   RH (sensitivity), ft per +10 pts     0.291  ...  159725    20744
+3      air density alone, ft per +1%    -1.407  ...  159725    20744
+4    dry part of density, ft per +1%    -1.360  ...  159725    20744
+5  vapor part of density, ft per +1%    -2.216  ...  159725    20744
+6          temperature, ft per +10 C     4.372  ...  159725    20744
+7      wind out to CF, ft per +1 m/s     0.617  ...  159725    20744
+8      wind toward RF, ft per +1 m/s    -0.018  ...  159725    20744
+9   surface pressure, ft per +10 hPa    -1.807  ...  159725    20744
+
+[10 rows x 8 columns]
+                                model  ...  raw_distance_diff
+0  humid - dry tercile, ft (adjusted)  ...              2.809
+
+[1 rows x 6 columns]
+[2/5] HR probability models
+                                                          model  ...   n_hr
+0                                   logit: humid vs dry tercile  ...  46128
+1                                     logit: mid vs dry tercile  ...  46128
+2                                    logit: per +10 C dew point  ...  46128
+3                                  logit: per +10 C temperature  ...  46128
+4                                    logit: per +1 m/s wind out  ...  46128
+5   Poisson (park+season-month FE): per +10 C dew point, % H...  ...  49416
+6   Poisson (park+season-month FE): per +10 C temperature, %...  ...  49416
+7   Poisson (park+season-month FE): humid vs dry tercile, % ...  ...  49416
+8        Poisson (team-season FE): per +10 C dew point, % HR/FB  ...  49416
+9      Poisson (team-season FE): per +10 C temperature, % HR/FB  ...  49416
+10      Poisson (team-season FE): humid vs dry tercile, % HR/FB  ...  49416
+
+[11 rows x 7 columns]
+[3/5] rain
+                                      label  ...  n_balls_rain
+0  StatsAPI condition Rain/Drizzle (strict)  ...          1917
+1                    ERA5 precip > 0.1 mm/h  ...         14029
+2                      ERA5 precip > 1 mm/h  ...          3584
+3       combined is_raining (either source)  ...         14802
+
+[4 rows x 9 columns]
+[4/5] robustness
+  stage 1 hawkeye: n=17,774  R2=0.873  resid SD=12.4 ft
+  stage 1 trackman: n=11,942  R2=0.857  resid SD=13.1 ft
+                                                          model  ...  n_games
+0                              Primary (all outdoor, 2015-2025)  ...    20744
+1                           Pre-2022 (before universal humidor)  ...    12757
+2                                     2022+ (all parks humidor)  ...     7987
+3                                        TrackMan era 2015-2019  ...     9997
+4                                        Hawk-Eye era 2020-2025  ...    10747
+5                                         Excluding Coors Field  ...    19920
+6                                Excluding 2015 (EV imputation)  ...    18763
+7                                  Excluding rain-flagged games  ...    18796
+8                           Vapor pressure instead of dew point  ...    20744
+9                     RH instead of dew point (temp controlled)  ...    20744
+10                      + StatsAPI in-park reported temperature  ...    20744
+11  Richest T control (ERA5 FP x day/night + reported + ball...  ...    20744
+12          All ERA5 weather interpolated to ball time (inning)  ...    20744
+13                                               Day games only  ...     7382
+14                                             Night games only  ...    13362
+15               Dew point, NO temperature control (confounded)  ...    20744
+16             Exit velocity as outcome (ball-moisture channel)  ...    20744
+17                           Exit velocity as outcome, pre-2022  ...    12757
+18          PLACEBO: roof-closed games (outdoor ERA5 dew point)  ...     3986
+19                  PLACEBO: sealed fixed dome only (Tropicana)  ...      742
+20                       PLACEBO: closed retractable roofs only  ...     3244
+21              PLACEBO: roof-closed games, outdoor temperature  ...     3986
+
+[22 rows x 9 columns]
+[5/5] map + binned tables
+             bin  n_balls  ...  adj_ci_high  physics_effect
+0   (-inf, -6.0]     1354  ...        -1.00           -0.86
+1   (-6.0, -4.0]     1086  ...        -0.48           -0.75
+2   (-4.0, -2.0]     1946  ...        -0.28           -0.70
+3    (-2.0, 0.0]     2762  ...        -0.25           -0.67
+4     (0.0, 2.0]     3670  ...        -0.68           -0.59
+5     (2.0, 4.0]     4765  ...        -0.49           -0.51
+6     (4.0, 6.0]     5601  ...        -0.09           -0.44
+7     (6.0, 8.0]     8340  ...        -0.14           -0.35
+8    (8.0, 10.0]    11051  ...         0.32           -0.23
+9   (10.0, 12.0]    16520  ...         0.12           -0.12
+10  (12.0, 14.0]    21129  ...         0.00            0.00
+11  (14.0, 16.0]    20777  ...         0.52            0.11
+12  (16.0, 18.0]    18590  ...         0.68            0.23
+13  (18.0, 20.0]    16031  ...         0.65            0.36
+14  (20.0, 22.0]    14484  ...         0.81            0.50
+15   (22.0, inf]    11619  ...         1.55            0.67
+
+[16 rows x 8 columns]
+results in /Users/ryjoh/repos/homerheat/analysis/results

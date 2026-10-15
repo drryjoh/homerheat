@@ -1,0 +1,2 @@
+model,term,scale,estimate,ci_low,ci_high,se,p,n,n_games,raw_resid_diff,raw_distance_diff
+"humid - dry tercile, ft (adjusted)","C(humid_tercile, Treatment('dry'))[T.humid]",1,0.6748541773642797,0.3742617646344269,0.9754465900941325,0.15336347588257795,1.0807249768736436e-05,159725,,0.6580005347111766,2.8093097206393622
