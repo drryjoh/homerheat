@@ -47,6 +47,7 @@ Rebuild commands (more are added as each stage lands):
 
 .venv/bin/python -m analysis.run_all     # models + map tables -> analysis/results/ (~5 min)
 .venv/bin/python figures/make_all.py     # all report figures -> figures/out/*.png (~5 s; or run any figures/figNN_*.py alone)
+.venv/bin/python report/build_html.py     # interactive report -> report/interactive.html (open in a browser)
 .venv/bin/python physics/trajectory.py   # distance vs RH table -> physics/out/distance_vs_rh.png
 ```
 

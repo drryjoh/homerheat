@@ -1,0 +1,578 @@
+<title>Humidity and Home Runs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+/* Layout: one reading column; each question gets a figure band with its controls in one row above the chart. */
+:root {
+  --bg: #f7f8f8; --surface: #ffffff; --ink: #0b0b0b; --ink2: #52514e; --muted: #7d7c77;
+  --rule: #e2e3e1; --grid: #ebebe8; --land: #eeefec; --state: #cfd0cb;
+  --accent: #1f5fae;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --div-lo: #1c5cab; --div-mid: #e4e4e0; --div-hi: #c73b3a;
+  --seq-lo: #cde2fb; --seq-hi: #0d366b;
+  --band: rgba(42,120,214,.16);
+  --f-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141515; --surface: #1c1d1d; --ink: #f0efec; --ink2: #c3c2b7; --muted: #9a998f;
+  --rule: #2e2f2f; --grid: #2a2b2b; --land: #242626; --state: #3d3f3e;
+  --accent: #6da7ec;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --div-lo: #3987e5; --div-mid: #3a3b3a; --div-hi: #e66767;
+  --seq-lo: #184f95; --seq-hi: #b7d3f6;
+  --band: rgba(57,135,229,.22);
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141515; --surface: #1c1d1d; --ink: #f0efec; --ink2: #c3c2b7; --muted: #9a998f;
+  --rule: #2e2f2f; --grid: #2a2b2b; --land: #242626; --state: #3d3f3e;
+  --accent: #6da7ec;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --div-lo: #3987e5; --div-mid: #3a3b3a; --div-hi: #e66767;
+  --seq-lo: #184f95; --seq-hi: #b7d3f6;
+  --band: rgba(57,135,229,.22);
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--f-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; line-height: 1.1; text-wrap: balance; margin: 0; letter-spacing: .005em; }
+h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); font-weight: 700; }
+h2 { font-size: 1.9rem; }
+h3 { font-size: 1.2rem; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font: 500 .78rem/1 var(--f-data); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.15rem; color: var(--ink2); }
+section { display: grid; gap: 18px; min-width: 0; }
+.prose { display: grid; gap: 12px; }
+strong { font-weight: 600; }
+.num, td.n, .mono { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+
+/* line score: the headline numbers set like a box score */
+.linescore { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); border-radius: 6px; }
+.linescore table { border-collapse: collapse; width: 100%; min-width: 620px; }
+.linescore th, .linescore td { padding: 10px 14px; text-align: right; border-left: 1px solid var(--rule); white-space: nowrap; }
+.linescore th:first-child, .linescore td:first-child { text-align: left; border-left: 0; }
+.linescore thead th { font: 500 .72rem/1.2 var(--f-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); }
+.linescore tbody td { font: 500 1.5rem/1 var(--f-data); font-variant-numeric: tabular-nums; }
+.linescore tbody td:first-child { font: 600 1.05rem/1.2 var(--f-display); letter-spacing: .02em; }
+.linescore .hl { color: var(--accent); }
+.linescore tfoot td { font-size: .8rem; color: var(--muted); font-family: var(--f-body); border-top: 1px solid var(--rule); }
+
+.fig { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 18px; display: grid; gap: 12px; min-width: 0; position: relative; }
+.fig .cap { font-size: .86rem; color: var(--ink2); max-width: none; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; flex-wrap: wrap; }
+.seg button { font: 500 .82rem/1 var(--f-data); padding: 8px 11px; border: 0; background: transparent; color: var(--ink2); cursor: pointer; border-left: 1px solid var(--rule); }
+.seg button:first-child { border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.sel { font-size: .82rem; color: var(--ink2); display: inline-flex; gap: 8px; align-items: center; }
+select { font: .85rem var(--f-body); padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink); }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { fill: var(--ink2); font: 12px var(--f-body); }
+.axis path, .axis line { stroke: var(--rule); }
+.axis text { fill: var(--muted); font: 11px var(--f-data); }
+.gridline line { stroke: var(--grid); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .82rem; color: var(--ink2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.key { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+.key.dot { width: 10px; height: 10px; border-radius: 50%; }
+.key.dia { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 1px; }
+.key.dash { background: repeating-linear-gradient(90deg, var(--s3) 0 5px, transparent 5px 8px) !important; }
+
+.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink); border: 1px solid var(--rule);
+  border-radius: 6px; padding: 9px 11px; font-size: .8rem; line-height: 1.45; box-shadow: 0 4px 18px rgba(0,0,0,.14); max-width: 280px; }
+.tip b { font-weight: 600; display: block; margin-bottom: 3px; }
+.tip .mono { font-size: .76rem; }
+
+/* physics calculator */
+.calc { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.sliders { display: grid; gap: 14px; }
+.sl { display: grid; gap: 4px; }
+.sl .top { display: flex; justify-content: space-between; font-size: .84rem; color: var(--ink2); }
+.sl .top output { font-family: var(--f-data); color: var(--ink); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.readout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.readout div { border-top: 2px solid var(--rule); padding-top: 8px; display: grid; gap: 2px; }
+.readout .v { font: 500 1.45rem/1.1 var(--f-data); font-variant-numeric: tabular-nums; }
+.readout .k { font-size: .76rem; color: var(--muted); }
+.readout .hum { border-top-color: var(--accent); }
+.reset { font: 500 .78rem var(--f-data); background: none; border: 1px solid var(--rule); color: var(--ink2); border-radius: 6px; padding: 6px 10px; cursor: pointer; justify-self: start; }
+
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.tablewrap { overflow-x: auto; }
+table.rob { border-collapse: collapse; width: 100%; font-size: .86rem; min-width: 640px; }
+table.rob th { text-align: left; font: 500 .72rem/1.2 var(--f-data); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+table.rob td { padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+table.rob td.n { text-align: right; white-space: nowrap; }
+table.rob tr.group td { font: 600 .95rem var(--f-display); letter-spacing: .02em; color: var(--ink); padding-top: 16px; }
+table.rob svg { width: 190px; height: 18px; }
+ol.caveats { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; max-width: 72ch; }
+pre { font: .8rem/1.6 var(--f-data); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; overflow-x: auto; margin: 0; }
+code { font-family: var(--f-data); font-size: .88em; }
+.foot { font-size: .82rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; }
+@media (max-width: 760px) { .calc, .two { grid-template-columns: minmax(0, 1fr); } .readout .v { font-size: 1.2rem; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="prose">
+    <div class="eyebrow">Statcast 2015–2025 · 25,193 games · 63,419 home runs · ERA5 first-pitch weather</div>
+    <h1>Does humid air carry the ball?</h1>
+    <p class="lede">A little. Fly balls travel about <strong>0.5–1 ft farther per +10 °C of dew point</strong>, the size physics predicts, because water vapor is lighter than the dry air it displaces. That is too small to show up in home run counts. Temperature, altitude and wind move the ball far more.</p>
+  </header>
+
+  <section aria-labelledby="ls">
+    <h2 id="ls" class="eyebrow" style="font: 500 .78rem/1 var(--f-data)">Extra carry on a well-hit fly ball, measured</h2>
+    <div class="linescore"><table>
+      <thead><tr><th>Factor</th><th>Measured</th><th>95% CI</th><th>Physics</th><th>vs humidity</th></tr></thead>
+      <tbody id="lsBody"></tbody>
+      <tfoot><tr><td colspan="5">Feet beyond what exit velocity, launch angle and spray predict. 159,725 air balls (launch 20–40°, EV ≥ 90 mph) in 20,744 outdoor games. Errors clustered by game.</td></tr></tfoot>
+    </table></div>
+  </section>
+
+  <section aria-labelledby="phys">
+    <div class="prose">
+      <div class="eyebrow">Physics</div>
+      <h2 id="phys">Try it: how far does the same swing carry?</h2>
+      <p>A drag-and-lift trajectory model (C<sub>d</sub> 0.35, C<sub>L</sub> 0.20) matched to Alan Nathan's published sensitivities within about 10%. Move the sliders. Humidity's share stays around a foot or two; temperature and elevation change the answer far more.</p>
+    </div>
+    <div class="fig">
+      <div class="calc">
+        <div class="sliders">
+          <div class="sl"><div class="top"><label for="sT">Temperature</label><output id="oT"></output></div><input id="sT" type="range" min="40" max="100" step="1" value="75"></div>
+          <div class="sl"><div class="top"><label for="sRH">Relative humidity</label><output id="oRH"></output></div><input id="sRH" type="range" min="0" max="100" step="1" value="50"></div>
+          <div class="sl"><div class="top"><label for="sE">Park elevation</label><output id="oE"></output></div><input id="sE" type="range" min="0" max="5300" step="50" value="0"></div>
+          <div class="sl"><div class="top"><label for="sEV">Exit velocity</label><output id="oEV"></output></div><input id="sEV" type="range" min="95" max="115" step="0.5" value="103"></div>
+          <div class="sl"><div class="top"><label for="sLA">Launch angle</label><output id="oLA"></output></div><input id="sLA" type="range" min="18" max="40" step="0.5" value="28"></div>
+          <div class="controls">
+            <button class="reset" id="pCoors" type="button">Coors on a summer night</button>
+            <button class="reset" id="pReset" type="button">Reset</button>
+          </div>
+        </div>
+        <div style="display:grid; gap:14px; min-width:0">
+          <div class="readout">
+            <div><span class="v" id="rCarry"></span><span class="k">Carry (ft)</span></div>
+            <div class="hum"><span class="v" id="rHum"></span><span class="k">From humidity (vs 0% RH)</span></div>
+            <div><span class="v" id="rBase"></span><span class="k">vs 75 °F, 50% RH, sea level</span></div>
+          </div>
+          <svg id="calcChart" viewBox="0 0 620 260" role="img" aria-label="Carry distance against relative humidity at the chosen temperature and elevation"></svg>
+          <p class="cap" id="calcCap"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="q5">
+    <div class="prose">
+      <div class="eyebrow">Question 5 · distance vs humidity</div>
+      <h2 id="q5">Raw distance rises with humidity, mostly because humid days are hot</h2>
+      <p>Each point is a humidity bin. The orange line is the raw change in average fly-ball distance relative to the reference bin. The blue line holds temperature, pressure, wind, park and season-month fixed, and compares each ball with its own exit velocity and launch angle; that adjusted line sits on the physics prediction (green, dashed). Relative humidity is misleading on its own: the driest-RH games are hot desert and altitude games.</p>
+    </div>
+    <div class="fig">
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Humidity measure">
+          <button type="button" data-h="dp" aria-pressed="true">Dew point</button>
+          <button type="button" data-h="rh" aria-pressed="false">Relative humidity</button>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="key" style="background:var(--s2)"></i>Raw average distance</span>
+        <span><i class="key" style="background:var(--s1)"></i>Adjusted effect, 95% CI</span>
+        <span><i class="key dash"></i>Physics prediction</span>
+      </div>
+      <svg id="humChart" viewBox="0 0 960 380" role="img" aria-label="Distance change by humidity bin"></svg>
+      <p class="cap" id="humCap"></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="q34">
+    <div class="prose">
+      <div class="eyebrow">Questions 3 and 4 · where</div>
+      <h2 id="q34">Home run hot spots are parks and climate, not humidity</h2>
+      <p>One dot per ballpark, sized by games. The <em>adjusted HR rate</em> compares home runs with what each park's own air balls should have produced from their exit velocity, launch angle and spray. That removes batter and team quality, so a strong home lineup does not inflate its park. Hollow rings are retractable-roof parks (open-roof games only). Tropicana's sealed dome is excluded.</p>
+    </div>
+    <div class="fig">
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Month" id="monthSeg"></div>
+        <label class="sel" for="metric">Color by
+          <select id="metric">
+            <option value="adj_hr_ratio">Adjusted HR rate (team quality removed)</option>
+            <option value="hr_per_fb_rel_league">HR per fly ball vs league</option>
+            <option value="mean_hr_distance">Average HR distance</option>
+            <option value="mean_resid_partial">Extra carry, net of temperature and wind</option>
+            <option value="mean_dew_point">Average dew point</option>
+          </select>
+        </label>
+      </div>
+      <svg id="map" role="img" aria-label="Map of MLB ballparks colored by the selected measure"></svg>
+      <div id="mapLegend"></div>
+      <p class="cap" id="mapCap"></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="q2">
+    <div class="prose">
+      <div class="eyebrow">Question 2 · more home runs on humid days?</div>
+      <h2 id="q2">Not detectably, and the effect sizes explain why</h2>
+      <p>Every factor below is on one scale: feet of extra carry from the same model, with the physics prediction beside it. Humidity is about a fifth of a 10 °C temperature swing and a twenty-fifth of Coors Field. Converting to home runs, +10 °C of dew point is worth about +1.9% (0.6 to 3.3%) among air balls. The game-level count, which does not hold exit velocity fixed, shows −1.1% (−3.3 to +1.3%), a null it was never powered to see.</p>
+    </div>
+    <div class="fig">
+      <div class="legend">
+        <span><i class="key" style="background:var(--s1)"></i>Measured, 95% CI</span>
+        <span><i class="key dia" style="background:var(--s3)"></i>Physics prediction</span>
+      </div>
+      <svg id="forest" viewBox="0 0 960 380" role="img" aria-label="Effect sizes in feet of carry"></svg>
+      <p class="cap">Hover a row for the home run equivalent where the model has one. Wind is ERA5 10 m grid wind, which understates in-park wind, so it has no physics marker.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="rain">
+    <div class="prose">
+      <div class="eyebrow">Question 3 · rain</div>
+      <h2 id="rain">Rain adds nothing once you account for the cooler air</h2>
+      <p>Home runs do get hit in the rain: 475 in the 264 games with rain or drizzle reported at first pitch. Rain games carry about 2.7 ft less in raw terms, all of it explained by temperature. With weather held fixed, every rain flag's interval spans zero.</p>
+    </div>
+    <div class="fig">
+      <div class="two">
+        <svg id="rainFt" viewBox="0 0 470 200" role="img" aria-label="Rain effect on carry in feet"></svg>
+        <svg id="rainHr" viewBox="0 0 470 200" role="img" aria-label="Rain effect on home run rate in percent"></svg>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="rob">
+    <div class="prose">
+      <div class="eyebrow">Checks</div>
+      <h2 id="rob">The estimate holds across splits, and the placebo stays flat</h2>
+      <p>Same primary model, re-run on subsets. Inside the sealed Tropicana dome, outdoor dew point should do nothing, and it does nothing. Closed retractable roofs leak outdoor air. Without a temperature control, the humidity estimate roughly triples.</p>
+    </div>
+    <div class="fig tablewrap"><table class="rob" id="robTable"></table></div>
+  </section>
+
+  <section aria-labelledby="cav">
+    <div class="prose">
+      <div class="eyebrow">Skepticism</div>
+      <h2 id="cav">What could still be wrong</h2>
+    </div>
+    <ol class="caveats">
+      <li><strong>Quote the range, not the point estimate.</strong> The dew-point coefficient runs 0.69 to 1.36 ft per 10 °C depending on how temperature is measured. Humid evenings stay warmer during the game than first-pitch weather shows.</li>
+      <li><strong>ERA5 is grid weather.</strong> About 30 km cells at the scheduled first-pitch hour, with 10 m wind. Coastal parks can be biased, and wind effects are understated.</li>
+      <li><strong>The stored ball matters more than the air.</strong> A ball kept in humid storage is heavier and less lively. Going from 30% to 50% storage humidity costs about 14 ft and 25% of home runs, the opposite direction. MLB required humidors in all parks from 2022.</li>
+      <li><strong>Measurement breaks.</strong> TrackMan (2015–19) and Hawk-Eye (2020+) are fit separately. 2015 has exit-velocity gaps. Ball changes swing league home runs ±15–20%, about ten times any humidity effect.</li>
+      <li><strong>One pre-registered model.</strong> Only the primary distance model was fixed in advance. Terciles, splits, home run models, rain and maps are exploratory.</li>
+      <li><strong>The park map is not a humidity map.</strong> A park's extra carry includes altitude, fences, wind bias and climate.</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="rep">
+    <div class="prose">
+      <div class="eyebrow">Reproduce</div>
+      <h2 id="rep">Rebuild the data, the figures and this page</h2>
+      <p>Each slide figure has its own script in <code>figures/</code> that reads only <code>analysis/results/</code> and runs in seconds. This page is built the same way by <code>report/build_html.py</code>.</p>
+    </div>
+<pre>python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python src/fetch_statcast.py --years 2015-2025   # ~20 min first time, cached after
+.venv/bin/python src/fetch_games.py --years 2015-2025
+.venv/bin/python src/fetch_weather.py
+.venv/bin/python src/build_dataset.py
+.venv/bin/python -m analysis.run_all      # models + tables -> analysis/results/
+.venv/bin/python figures/make_all.py      # slide PNGs -> figures/out/
+.venv/bin/python report/build_html.py     # this page -> report/interactive.html</pre>
+  </section>
+
+  <footer class="foot">Data: Statcast via pybaseball, MLB StatsAPI, Open-Meteo ERA5 archive. Physics benchmarks: A. M. Nathan, University of Illinois. Full references in <code>report/report.pdf</code>.</footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const D = /*__DATA__*/null;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v, d = 1, sign = true) => v == null ? "—" : (sign && v > 0 ? "+" : "") + v.toFixed(d).replace("-", "−");
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect(), pad = 14;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+const redraws = [];
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redraws.forEach(f => f()));
+new MutationObserver(() => redraws.forEach(f => f())).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+/* ---------- line score ---------- */
+(function lineScore() {
+  const hum = D.effects[0].est;
+  const pick = [0, 2, 4, 5, 6, 3];
+  document.getElementById("lsBody").innerHTML = pick.map(i => {
+    const e = D.effects[i];
+    const ratio = e.humid ? "—" : (e.est / hum).toFixed(1).replace(/\.0$/, "") + "×";
+    return `<tr><td>${e.label}</td><td class="${e.humid ? "hl" : ""}">${fmt(e.est)}</td>
+      <td style="font-size:1rem;color:var(--ink2)">${fmt(e.lo)} to ${fmt(e.hi)}</td>
+      <td style="font-size:1rem;color:var(--ink2)">${e.phys == null ? "—" : fmt(e.phys)}</td>
+      <td style="font-size:1rem;color:var(--ink2)">${ratio}</td></tr>`;
+  }).join("");
+})();
+
+/* ---------- physics calculator (port of physics/trajectory.py) ---------- */
+const PH = (() => {
+  const R = 8.314462618, MD = 0.028965, MV = 0.018015, P0 = 101325, G = 9.81, M = 0.145;
+  const CIRC = 9.125 * 0.0254, A = Math.PI * (CIRC / (2 * Math.PI)) ** 2, CD = 0.35, CL = 0.20;
+  const MPH = 0.44704, FT = 0.3048;
+  const esat = tk => 611.2 * Math.exp(17.67 * (tk - 273.15) / (tk - 273.15 + 243.5));
+  const pAlt = hm => P0 * (1 - 2.25577e-5 * hm) ** 5.25588;
+  const rho = (tf, rh, p = P0) => { const tk = (tf - 32) * 5 / 9 + 273.15, pv = rh * esat(tk); return ((p - pv) * MD + pv * MV) / (R * tk); };
+  function carry(r, ev = 103, la = 28, h0 = 3) {
+    const kd = 0.5 * r * CD * A / M, kl = 0.5 * r * CL * A / M;
+    const f = s => { const v = Math.hypot(s[2], s[3]); return [s[2], s[3], -kd * v * s[2] - kl * v * s[3], -kd * v * s[3] + kl * v * s[2] - G]; };
+    const th = la * Math.PI / 180, v0 = ev * MPH;
+    let s = [0, h0 * FT, v0 * Math.cos(th), v0 * Math.sin(th)], dt = 0.002;
+    for (let i = 0; i < 20000; i++) {
+      const k1 = f(s), k2 = f(s.map((x, j) => x + dt / 2 * k1[j])), k3 = f(s.map((x, j) => x + dt / 2 * k2[j])), k4 = f(s.map((x, j) => x + dt * k3[j]));
+      const n = s.map((x, j) => x + dt / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]));
+      if (n[1] < 0) { const a = s[1] / (s[1] - n[1]); return (s[0] + a * (n[0] - s[0])) / FT; }
+      s = n;
+    }
+    return NaN;
+  }
+  return { rho, pAlt, carry };
+})();
+
+(function calculator() {
+  const ids = ["sT", "sRH", "sE", "sEV", "sLA"], el = Object.fromEntries(ids.map(i => [i, document.getElementById(i)]));
+  const defaults = { sT: 75, sRH: 50, sE: 0, sEV: 103, sLA: 28 };
+  const svg = d3.select("#calcChart"), W = 620, H = 260, m = { t: 14, r: 18, b: 38, l: 52 };
+  const base = PH.carry(PH.rho(75, 0.5));
+  function draw() {
+    const T = +el.sT.value, RH = +el.sRH.value, E = +el.sE.value, EV = +el.sEV.value, LA = +el.sLA.value;
+    document.getElementById("oT").textContent = `${T} °F`;
+    document.getElementById("oRH").textContent = `${RH}%`;
+    document.getElementById("oE").textContent = `${E.toLocaleString()} ft`;
+    document.getElementById("oEV").textContent = `${EV} mph`;
+    document.getElementById("oLA").textContent = `${LA}°`;
+    const p = PH.pAlt(E * 0.3048);
+    const at = rh => PH.carry(PH.rho(T, rh / 100, p), EV, LA);
+    const d = at(RH), d0 = at(0);
+    const baseHere = PH.carry(PH.rho(75, 0.5), EV, LA);
+    document.getElementById("rCarry").textContent = d.toFixed(0);
+    document.getElementById("rHum").textContent = fmt(d - d0) + " ft";
+    document.getElementById("rBase").textContent = fmt(d - baseHere) + " ft";
+    const warm = PH.carry(PH.rho(T + 10, RH / 100, p), EV, LA) - d;
+    document.getElementById("calcCap").innerHTML = `At these settings, going from bone-dry to saturated air adds <strong>${fmt(at(100) - d0)} ft</strong>. Warming the same air by 10 °F adds <strong>${fmt(warm)} ft</strong>. The y-axis always spans 30 ft so the slope reads at true size.`;
+    const pts = d3.range(0, 101, 5).map(r => [r, at(r)]);
+    const mid = (pts[0][1] + pts[pts.length - 1][1]) / 2;
+    const x = d3.scaleLinear([0, 100], [m.l, W - m.r]), y = d3.scaleLinear([mid - 15, mid + 15], [H - m.b, m.t]);
+    svg.selectAll("*").remove();
+    svg.append("g").attr("class", "gridline").selectAll("line").data(y.ticks(6)).join("line")
+      .attr("x1", m.l).attr("x2", W - m.r).attr("y1", y).attr("y2", y);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(5).tickFormat(v => v + "%").tickSizeOuter(0));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickSizeOuter(0)).call(g => g.select(".domain").remove());
+    svg.append("text").attr("x", (m.l + W - m.r) / 2).attr("y", H - 4).attr("text-anchor", "middle").text("Relative humidity");
+    svg.append("text").attr("transform", `translate(13,${(H - m.b + m.t) / 2}) rotate(-90)`).attr("text-anchor", "middle").text("Carry (ft)");
+    svg.append("path").datum(pts).attr("fill", "none").attr("stroke", css("--s1")).attr("stroke-width", 2).attr("d", d3.line(p => x(p[0]), p => y(p[1])));
+    svg.append("circle").attr("cx", x(RH)).attr("cy", y(d)).attr("r", 6).attr("fill", css("--s1")).attr("stroke", css("--surface")).attr("stroke-width", 2);
+    svg.append("text").attr("x", x(RH)).attr("y", y(d) - 12).attr("text-anchor", RH > 85 ? "end" : RH < 15 ? "start" : "middle")
+      .style("fill", css("--ink")).style("font-family", "var(--f-data)").text(`${d.toFixed(1)} ft`);
+  }
+  ids.forEach(i => el[i].addEventListener("input", draw));
+  document.getElementById("pReset").onclick = () => { ids.forEach(i => el[i].value = defaults[i]); draw(); };
+  document.getElementById("pCoors").onclick = () => { Object.assign(el.sT, { value: 82 }); el.sRH.value = 30; el.sE.value = 5200; el.sEV.value = 103; el.sLA.value = 28; draw(); };
+  draw(); redraws.push(draw);
+})();
+
+/* ---------- distance vs humidity ---------- */
+(function humidity() {
+  let mode = "dp";
+  const svg = d3.select("#humChart"), W = 960, H = 380, m = { t: 16, r: 150, b: 44, l: 56 };
+  function draw() {
+    const rows = (mode === "dp" ? D.bins_dp : D.bins_rh).filter(r => r.mean_var != null);
+    const unit = mode === "dp" ? "°C" : "%";
+    const x = d3.scaleLinear(d3.extent(rows, r => r.mean_var), [m.l, W - m.r]).nice();
+    const lo = d3.min(rows, r => Math.min(r.raw_vs_ref, r.adj_ci_low, r.physics_effect));
+    const hi = d3.max(rows, r => Math.max(r.raw_vs_ref, r.adj_ci_high, r.physics_effect));
+    const y = d3.scaleLinear([Math.min(lo, -2), Math.max(hi, 2)], [H - m.b, m.t]).nice();
+    svg.selectAll("*").remove();
+    svg.append("g").attr("class", "gridline").selectAll("line").data(y.ticks(7)).join("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", y).attr("y2", y);
+    svg.append("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", css("--muted")).attr("stroke-width", 1);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(8).tickFormat(v => v + unit).tickSizeOuter(0));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(7).tickFormat(v => fmt(v, 0)).tickSizeOuter(0)).call(g => g.select(".domain").remove());
+    svg.append("text").attr("x", (m.l + W - m.r) / 2).attr("y", H - 6).attr("text-anchor", "middle").text(mode === "dp" ? "Dew point at first pitch" : "Relative humidity at first pitch");
+    svg.append("text").attr("transform", `translate(14,${(H - m.b + m.t) / 2}) rotate(-90)`).attr("text-anchor", "middle").text("Change vs reference bin (ft)");
+    svg.append("path").datum(rows).attr("fill", css("--band")).attr("d", d3.area(r => x(r.mean_var), r => y(r.adj_ci_low), r => y(r.adj_ci_high)));
+    const series = [["raw_vs_ref", "--s2", "Raw", null], ["adj_effect", "--s1", "Adjusted", null], ["physics_effect", "--s3", "Physics", "6 4"]];
+    series.forEach(([k, c, name, dash]) => {
+      svg.append("path").datum(rows).attr("fill", "none").attr("stroke", css(c)).attr("stroke-width", 2).attr("stroke-dasharray", dash)
+        .attr("d", d3.line(r => x(r.mean_var), r => y(r[k])));
+      if (k !== "physics_effect") svg.append("g").selectAll("circle").data(rows).join("circle").attr("cx", r => x(r.mean_var)).attr("cy", r => y(r[k]))
+        .attr("r", 4).attr("fill", css(c)).attr("stroke", css("--surface")).attr("stroke-width", 2);
+    });
+    // direct labels at the right end, nudged apart
+    const last = rows[rows.length - 1];
+    const labs = series.map(([k, c, name]) => ({ name, c, y: y(last[k]), v: last[k] })).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 16) labs[i].y = labs[i - 1].y + 16;
+    labs.forEach(l => svg.append("text").attr("x", W - m.r + 10).attr("y", l.y + 4).style("fill", css("--ink2")).text(`${l.name} ${fmt(l.v)} ft`));
+    // hover
+    const hx = svg.append("line").attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--muted")).attr("stroke-dasharray", "2 3").attr("visibility", "hidden");
+    svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", W - m.r - m.l).attr("height", H - m.b - m.t).attr("fill", "transparent")
+      .on("mousemove", ev => {
+        const [px] = d3.pointer(ev), v = x.invert(px);
+        const r = rows.reduce((a, b) => Math.abs(b.mean_var - v) < Math.abs(a.mean_var - v) ? b : a);
+        hx.attr("x1", x(r.mean_var)).attr("x2", x(r.mean_var)).attr("visibility", "visible");
+        showTip(ev, `<b>${mode === "dp" ? "Dew point" : "RH"} bin ${r.bin.replace("-inf", "−∞")}</b>
+          <span class="mono">Raw ${fmt(r.raw_vs_ref)} ft · Adjusted ${fmt(r.adj_effect)} ft (${fmt(r.adj_ci_low)} to ${fmt(r.adj_ci_high)}) · Physics ${fmt(r.physics_effect)} ft</span><br>
+          Avg temperature ${r.mean_temp_c.toFixed(1)} °C · ${r.n_balls.toLocaleString()} air balls in ${r.n_games.toLocaleString()} games`);
+      }).on("mouseleave", () => { hx.attr("visibility", "hidden"); hideTip(); });
+    const ref = rows[0].reference_bin;
+    document.getElementById("humCap").textContent = `Reference bin ${ref}${unit === "%" ? "% RH" : " °C dew point"}. Raw is the change in mean distance of air balls; adjusted and physics are from the primary model (park-period and season-month fixed effects, temperature, pressure and wind held fixed).`;
+  }
+  document.querySelectorAll("[data-h]").forEach(b => b.addEventListener("click", () => {
+    mode = b.dataset.h; document.querySelectorAll("[data-h]").forEach(o => o.setAttribute("aria-pressed", o === b)); draw();
+  }));
+  draw(); redraws.push(draw);
+})();
+
+/* ---------- map ---------- */
+(function map() {
+  const months = [["season", "Season"], [4, "Apr"], [5, "May"], [6, "Jun"], [7, "Jul"], [8, "Aug"], [9, "Sep"]];
+  let month = "season";
+  const seg = document.getElementById("monthSeg");
+  seg.innerHTML = months.map(([v, l]) => `<button type="button" data-m="${v}" aria-pressed="${v === month}">${l}</button>`).join("");
+  const sel = document.getElementById("metric");
+  const META = {
+    adj_hr_ratio: { name: "Adjusted HR rate", kind: "div", center: 1, f: v => (v * 100 - 100).toFixed(0).replace("-", "−") + "%", fmtLeg: v => (v > 1 ? "+" : "") + ((v - 1) * 100).toFixed(0).replace("-", "−") + "%",
+      cap: "Home runs vs what each ball's exit velocity, launch angle and spray predict, relative to league. Red runs hot, blue runs cold." },
+    hr_per_fb_rel_league: { name: "HR/FB vs league", kind: "div", center: 1, f: v => (v * 100 - 100).toFixed(0).replace("-", "−") + "%", fmtLeg: v => (v > 1 ? "+" : "") + ((v - 1) * 100).toFixed(0).replace("-", "−") + "%",
+      cap: "Raw home runs per fly ball relative to the league that season. Not adjusted for who is hitting, so strong lineups inflate their park." },
+    mean_hr_distance: { name: "Average HR distance", kind: "seq", f: v => v.toFixed(0) + " ft", fmtLeg: v => v.toFixed(0) + " ft",
+      cap: "Mean Statcast distance of home runs hit at the park. Short porches (Yankee Stadium) pull it down; altitude (Coors) pushes it up." },
+    mean_resid_partial: { name: "Extra carry", kind: "div", center: 0, f: v => fmt(v) + " ft", fmtLeg: v => fmt(v, 0) + " ft",
+      cap: "Air-ball distance beyond what launch conditions predict, net of temperature and wind. This shows altitude and park carry, not humidity." },
+    mean_dew_point: { name: "Average dew point", kind: "seq", f: v => v.toFixed(1) + " °C", fmtLeg: v => v.toFixed(0) + " °C",
+      cap: "Average first-pitch dew point. Compare with the other measures: the humid Southeast and Midwest are not where home runs run hot." },
+  };
+  const svg = d3.select("#map").attr("viewBox", `0 0 ${D.W} ${D.H}`);
+  function draw() {
+    const key = sel.value, meta = META[key];
+    const rows = (month === "season" ? D.parks : D.park_month.filter(r => r.month === +month)).filter(r => r[key] != null);
+    let color, domain;
+    if (meta.kind === "div") {
+      const all = D.parks.concat(D.park_month).map(r => r[key]).filter(v => v != null && isFinite(v));
+      const span = d3.quantile(all.map(v => Math.abs(v - meta.center)).sort(d3.ascending), 0.95);
+      domain = [meta.center - span, meta.center, meta.center + span];
+      color = d3.scaleLinear(domain, [css("--div-lo"), css("--div-mid"), css("--div-hi")]).clamp(true);
+    } else {
+      const all = D.parks.concat(D.park_month).map(r => r[key]).filter(v => v != null);
+      domain = [d3.quantile(all.sort(d3.ascending), 0.03), d3.quantile(all, 0.97)];
+      color = d3.scaleLinear(domain, [css("--seq-lo"), css("--seq-hi")]).clamp(true);
+    }
+    const size = d3.scaleSqrt([0, d3.max(D.parks, r => r.n_games)], [0, month === "season" ? 16 : 11]);
+    svg.selectAll("*").remove();
+    svg.append("g").selectAll("path").data(D.states).join("path").attr("d", d => d).attr("fill", css("--land")).attr("stroke", css("--state")).attr("stroke-width", 0.6);
+    const g = svg.append("g");
+    g.selectAll("circle").data(rows.sort((a, b) => b.n_games - a.n_games)).join("circle")
+      .attr("cx", r => r.x).attr("cy", r => r.y).attr("r", r => Math.max(4, size(r.n_games)))
+      .attr("fill", r => r.roof ? "none" : color(r[key])).attr("stroke", r => r.roof ? color(r[key]) : css("--surface"))
+      .attr("stroke-width", r => r.roof ? 3 : 1.5).style("cursor", "pointer")
+      .on("mousemove", (ev, r) => showTip(ev, `<b>${r.venue_name} (${r.home_team})</b>
+        ${meta.name}: <span class="mono">${meta.f(r[key])}</span><br>
+        <span class="mono">Adj HR ${META.adj_hr_ratio.f(r.adj_hr_ratio)} · HR/FB ${(r.hr_per_fb * 100).toFixed(1)}% · HR dist ${r.mean_hr_distance ? r.mean_hr_distance.toFixed(0) : "—"} ft · extra carry ${fmt(r.mean_resid_partial)} ft</span><br>
+        Dew point ${r.mean_dew_point.toFixed(1)} °C · ${r.mean_temp_c.toFixed(1)} °C · ${r.n_games.toLocaleString()} games, ${r.n_hr.toLocaleString()} HR${r.roof ? "<br>Retractable roof: open-roof games only" : ""}${r.temporary ? "<br>Temporary home park, small sample" : ""}`))
+      .on("mouseleave", hideTip);
+    // label the five most extreme parks so the map reads without hovering
+    const ext = rows.filter(r => !r.temporary).sort((a, b) => Math.abs(b[key] - (meta.center ?? d3.mean(rows, q => q[key]))) - Math.abs(a[key] - (meta.center ?? d3.mean(rows, q => q[key])))).slice(0, 5);
+    g.selectAll("text").data(ext).join("text").attr("x", r => r.x + Math.max(4, size(r.n_games)) + 4).attr("y", r => r.y + 4)
+      .style("fill", css("--ink")).style("font-size", "12px").style("paint-order", "stroke").style("stroke", css("--land")).style("stroke-width", "3px")
+      .text(r => `${r.home_team} ${meta.f(r[key])}`);
+    // legend
+    const lw = 260, lg = d3.select("#mapLegend").html("").append("svg").attr("viewBox", `0 0 ${lw + 260} 40`).style("max-width", `${lw + 260}px`);
+    const gid = "lg" + key;
+    const grad = lg.append("defs").append("linearGradient").attr("id", gid);
+    const stops = meta.kind === "div" ? [0, 0.5, 1] : [0, 1];
+    stops.forEach((s, i) => grad.append("stop").attr("offset", s).attr("stop-color", color(meta.kind === "div" ? domain[i] : domain[i])));
+    lg.append("rect").attr("x", 0).attr("y", 4).attr("width", lw).attr("height", 10).attr("rx", 3).attr("fill", `url(#${gid})`);
+    const lx = d3.scaleLinear([domain[0], domain[domain.length - 1]], [0, lw]);
+    lg.append("g").attr("class", "axis").attr("transform", "translate(0,16)").call(d3.axisBottom(lx).ticks(5).tickFormat(meta.fmtLeg).tickSize(3)).call(g => g.select(".domain").remove());
+    lg.append("circle").attr("cx", lw + 34).attr("cy", 9).attr("r", 6).attr("fill", "none").attr("stroke", css("--muted")).attr("stroke-width", 2.5);
+    lg.append("text").attr("x", lw + 46).attr("y", 13).text("Retractable roof");
+    document.getElementById("mapCap").textContent = meta.cap + (month === "season" ? " All months 2015–2025." : ` ${months.find(m => String(m[0]) === String(month))[1]} only, parks with at least 5 games.`);
+  }
+  seg.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; month = b.dataset.m; seg.querySelectorAll("button").forEach(o => o.setAttribute("aria-pressed", o === b)); draw(); });
+  sel.addEventListener("change", draw);
+  draw(); redraws.push(draw);
+})();
+
+/* ---------- forest of effect sizes ---------- */
+function forest(svgSel, rows, { W, rowH, unit, labelW, valueKey = "est" }) {
+  const H = rows.length * rowH + 44, m = { t: 8, r: 70, b: 36, l: labelW };
+  const svg = d3.select(svgSel).attr("viewBox", `0 0 ${W} ${H}`);
+  svg.selectAll("*").remove();
+  const vals = rows.flatMap(r => [r.lo, r.hi, r.phys, 0]).filter(v => v != null);
+  const x = d3.scaleLinear(d3.extent(vals), [m.l, W - m.r]).nice();
+  const y = (i) => m.t + i * rowH + rowH / 2;
+  svg.append("g").attr("class", "gridline").selectAll("line").data(x.ticks(6)).join("line").attr("x1", x).attr("x2", x).attr("y1", m.t).attr("y2", H - m.b);
+  svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", m.t).attr("y2", H - m.b).attr("stroke", css("--muted"));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(6).tickFormat(v => fmt(v, 0) + unit).tickSizeOuter(0));
+  rows.forEach((r, i) => {
+    const g = svg.append("g");
+    if (r.humid) g.append("rect").attr("x", 0).attr("y", y(i) - rowH / 2 + 2).attr("width", W).attr("height", rowH - 4).attr("rx", 4).attr("fill", css("--band")).attr("opacity", .55);
+    g.append("text").attr("x", m.l - 14).attr("y", y(i) + 4).attr("text-anchor", "end").style("fill", css("--ink")).style("font-weight", r.humid ? 600 : 400).style("font-size", "13px").text(r.label);
+    if (r.lo != null) g.append("line").attr("x1", x(r.lo)).attr("x2", x(r.hi)).attr("y1", y(i) + 3).attr("y2", y(i) + 3).attr("stroke", css("--s1")).attr("stroke-width", 3).attr("stroke-linecap", "round");
+    g.append("circle").attr("cx", x(r[valueKey])).attr("cy", y(i) + 3).attr("r", 6).attr("fill", css("--s1")).attr("stroke", css("--surface")).attr("stroke-width", 2);
+    if (r.phys != null) g.append("rect").attr("x", x(r.phys) - 5).attr("y", y(i) - 13).attr("width", 10).attr("height", 10).attr("fill", css("--s3"))
+      .attr("transform", `rotate(45 ${x(r.phys)} ${y(i) - 8})`).attr("stroke", css("--surface")).attr("stroke-width", 1.5);
+    g.append("text").attr("x", Math.max(x(r.hi ?? r[valueKey]), x(r.phys ?? -1e9)) + 12).attr("y", y(i) + 7).style("font-family", "var(--f-data)").style("fill", css("--ink2")).text(fmt(r[valueKey]) + unit);
+    g.append("rect").attr("x", 0).attr("y", y(i) - rowH / 2).attr("width", W).attr("height", rowH).attr("fill", "transparent")
+      .on("mousemove", ev => showTip(ev, `<b>${r.label}</b><span class="mono">${fmt(r[valueKey])}${unit} (95% CI ${fmt(r.lo)} to ${fmt(r.hi)})${r.phys != null ? ` · physics ${fmt(r.phys)}${unit}` : ""}</span>${r.hr ? `<br>Home runs among air balls: <span class="mono">${fmt(r.hr[0])}% (${fmt(r.hr[1])} to ${fmt(r.hr[2])})</span>` : ""}${r.note ? `<br>${r.note}` : ""}${r.n ? `<br>${r.n}` : ""}`))
+      .on("mouseleave", hideTip);
+  });
+}
+function drawForest() { forest("#forest", D.effects, { W: 960, rowH: 46, unit: " ft", labelW: 280 }); }
+drawForest(); redraws.push(drawForest);
+
+/* ---------- rain ---------- */
+function drawRain() {
+  const order = ["rain_statsapi", "rain_era5_1mm", "rain_era5"];
+  const names = { rain_statsapi: "MLB reports rain/drizzle", rain_era5_1mm: "ERA5 > 1 mm/h", rain_era5: "ERA5 > 0.1 mm/h" };
+  const rs = order.map(f => D.rain.find(r => r.flag === f));
+  const n = r => `${r.n_games_rain.toLocaleString()} games, ${r.n_hr_rain.toLocaleString()} HR`;
+  forest("#rainFt", rs.map(r => ({ label: names[r.flag], est: r.resid_ft, lo: r.resid_ci_low, hi: r.resid_ci_high, n: n(r) })), { W: 470, rowH: 44, unit: " ft", labelW: 180 });
+  forest("#rainHr", rs.map(r => ({ label: names[r.flag], est: r.hr_pct, lo: r.hr_ci_low, hi: r.hr_ci_high, n: n(r) })), { W: 470, rowH: 44, unit: "%", labelW: 180 });
+  [["#rainFt", "Carry, ft"], ["#rainHr", "Home runs, %"]].forEach(([s, t]) => d3.select(s).append("text").attr("x", 0).attr("y", 152 + 26).style("fill", css("--muted")).style("font-family", "var(--f-data)").style("font-size", "11px").text(t.toUpperCase()));
+}
+drawRain(); redraws.push(drawRain);
+
+/* ---------- robustness table ---------- */
+function drawRob() {
+  const t = document.getElementById("robTable");
+  const groups = [
+    ["Splits", r => !/PLACEBO|Exit velocity|NO temperature/.test(r.model) && /dew point/.test(r.unit)],
+    ["Placebo and confounding checks", r => /PLACEBO|NO temperature/.test(r.model) && /dew point/.test(r.unit)],
+    ["Other measures", r => !/dew point/.test(r.unit) || /Exit velocity/.test(r.model)],
+  ];
+  const x = d3.scaleLinear([-1.5, 3], [6, 184]);
+  const mini = r => {
+    if (!/ft per \+10 C dew point/.test(r.unit) || /Exit velocity/.test(r.model)) return "";
+    const s = d3.create("svg").attr("viewBox", "0 0 190 18");
+    s.append("rect").attr("x", x(0.46)).attr("y", 2).attr("width", x(0.92) - x(0.46)).attr("height", 14).attr("fill", css("--band"));
+    s.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", 0).attr("y2", 18).attr("stroke", css("--muted"));
+    s.append("line").attr("x1", x(Math.max(-1.5, r.ci_low))).attr("x2", x(Math.min(3, r.ci_high))).attr("y1", 9).attr("y2", 9).attr("stroke", css("--s1")).attr("stroke-width", 2.5).attr("stroke-linecap", "round");
+    s.append("circle").attr("cx", x(Math.max(-1.5, Math.min(3, r.estimate)))).attr("cy", 9).attr("r", 4).attr("fill", css("--s1"));
+    if (r.physics_pred != null) s.append("rect").attr("x", x(r.physics_pred) - 3).attr("y", 6).attr("width", 6).attr("height", 6).attr("fill", css("--s3")).attr("transform", `rotate(45 ${x(r.physics_pred)} 9)`);
+    return s.node().outerHTML;
+  };
+  t.innerHTML = `<thead><tr><th>Model</th><th style="text-align:right">Estimate</th><th style="text-align:right">95% CI</th><th>−1.5 … +3 ft</th><th>Unit</th><th style="text-align:right">Games</th></tr></thead><tbody>` +
+    groups.map(([name, f]) => `<tr class="group"><td colspan="6">${name}</td></tr>` + D.robust.filter(f).map(r =>
+      `<tr><td>${r.model}</td><td class="n">${fmt(r.estimate, 2)}</td><td class="n">${fmt(r.ci_low, 2)} to ${fmt(r.ci_high, 2)}</td><td>${mini(r)}</td><td style="color:var(--muted)">${r.unit}</td><td class="n">${r.n_games ? r.n_games.toLocaleString() : "—"}</td></tr>`).join("")).join("") +
+    `</tbody><tfoot><tr><td colspan="6" style="font-size:.8rem;color:var(--muted);padding-top:10px">Shaded band: the 0.46–0.92 ft interval from the richest temperature control. Green diamond: physics prediction for that sample.</td></tr></tfoot>`;
+}
+drawRob(); redraws.push(drawRob);
+</script>
